@@ -16,12 +16,12 @@ type cacheEntry struct {
 	marked    bool
 }
 
-func NewCache(time time.Duration) Cache {
+func NewCache(d time.Duration) Cache {
 	c := Cache{
 		entries: map[string]cacheEntry{},
 		mu:      sync.Mutex{},
 	}
-	go c.reapLoop(time)
+	go c.reapLoop(d)
 	return c
 }
 
@@ -29,31 +29,28 @@ func (c Cache) Add(key string, val []byte) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.entries[key] := cacheEntry{
+	c.entries[key] = cacheEntry{
 		createdAt: time.Now(),
 		val:       val,
-		marked:    false,
 	}
 }
 
-func (c Cache) Get(key string) []byte, bool {
+func (c Cache) Get(key string) ([]byte, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	v, ok := c.entries[key]
-	return v, ok
+	entry, ok := c.entries[key]
+	return entry.val, ok
 }
 
-func (c Cache) reapLoop(time time.Duration) {
-	t := time.NewTicker(time)
+func (c Cache) reapLoop(d time.Duration) {
+	t := time.NewTicker(d)
 
 	for range t.C {
 		c.mu.Lock()
 		for entryKey, entry := range c.entries {
-			if entry.marked == true {
+			if time.Now().Sub(entry.createdAt) >= d {
 				delete(c.entries, entryKey)
-			} else {
-				entry.marked = true
 			}
 		}
 		c.mu.Unlock()
